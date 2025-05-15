@@ -171,10 +171,19 @@
     "zod": "^3.23.8"
   },
   "trustedDependencies": [
+    "@playwright/browser-chromium",
+    "better-sqlite3",
+    "bufferutil",
+    "canvas",
+    "esbuild",
     "faiss-node",
     "markmap-cli",
     "node-vad",
     "onnxruntime-node",
-    "protobufjs"
+    "pdf2html",
+    "protobufjs",
+    "puppeteer",
+    "sharp",
+    "utf-8-validate"
   ]
 }

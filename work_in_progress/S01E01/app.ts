@@ -58,7 +58,7 @@ app.get("/process-website", async (req, res) => {
         const formData = new URLSearchParams();
         formData.append('username', 'tester');
         formData.append('password', '574e112a');
-        formData.append('answer', answer);
+        formData.append('answer', answer || 'Unknown');
 
         // Send the answer to the specified URL
         try {

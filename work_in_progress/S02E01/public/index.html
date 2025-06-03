@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Audio Transcription & Analysis</title>
+  <style>
+    body { font-family: Arial, sans-serif; max-width: 700px; margin: 40px auto; padding: 20px; }
+    h1 { color: #333; }
+    .section { margin-bottom: 32px; padding: 20px; background: #f9f9f9; border-radius: 8px; }
+    .file-list { margin: 0; padding: 0; list-style: none; }
+    .file-list li { padding: 6px 0; border-bottom: 1px solid #eee; }
+    .file-list li:last-child { border-bottom: none; }
+    .results, .analysis { background: #fff; border: 1px solid #ddd; border-radius: 4px; padding: 12px; margin-top: 12px; white-space: pre-wrap; }
+    .hidden { display: none !important; }
+    .loader { display: none; width: 18px; height: 18px; border: 3px solid #f3f3f3; border-radius: 50%; border-top: 3px solid #3498db; animation: spin 1s linear infinite; vertical-align: middle; margin-left: 8px; }
+    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    button { padding: 8px 16px; border: none; background: #4CAF50; color: #fff; border-radius: 4px; cursor: pointer; margin-right: 8px; }
+    button:disabled { background: #aaa; }
+    input[type="file"] { margin-bottom: 8px; }
+  </style>
+</head>
+<body>
+  <h1>Audio Transcription & Analysis</h1>
+
+  <div class="section">
+    <h2>Upload Audio Files</h2>
+    <form id="uploadForm" enctype="multipart/form-data">
+      <input type="file" id="audioFiles" name="audio" multiple accept="audio/*">
+      <button type="submit">Upload</button>
+      <span id="uploadLoader" class="loader hidden"></span>
+    </form>
+    <div id="uploadResults" class="results hidden"></div>
+  </div>
+
+  <div class="section">
+    <h2>Available Audio Files</h2>
+    <ul id="audioFilesList" class="file-list"></ul>
+    <div id="noFilesMsg" class="results hidden">No audio files found.</div>
+  </div>
+
+  <div class="section">
+    <h2>Transcription</h2>
+    <button id="transcribeAllBtn">Transcribe All Audio Files</button>
+    <span id="transcribeLoader" class="loader hidden"></span>
+    <div id="transcribeResults" class="results hidden"></div>
+  </div>
+
+  <div class="section">
+    <h2>Analysis</h2>
+    <button id="analyzeBtn">Analyze All Transcriptions</button>
+    <span id="analyzeLoader" class="loader hidden"></span>
+    <div id="analysisResults" class="analysis hidden"></div>
+  </div>
+
+  <div class="section">
+    <h2>Wyślij odpowiedź (nazwa ulicy)</h2>
+    <form id="reportForm">
+      <input type="text" id="streetAnswer" name="answer" placeholder="Wpisz nazwę ulicy" required style="width: 300px;">
+      <button type="submit">Wyślij</button>
+      <span id="reportLoader" class="loader hidden"></span>
+    </form>
+    <div id="reportResults" class="results hidden"></div>
+  </div>
+
+  <script>
+    // Helper
+    function show(el, show = true) {
+      if (show) {
+        el.classList.remove('hidden');
+        if (el.classList.contains('loader')) {
+          el.style.display = 'inline-block';
+        }
+      } else {
+        el.classList.add('hidden');
+        if (el.classList.contains('loader')) {
+          el.style.display = 'none';
+        }
+      }
+    }
+    function setText(el, text) { el.textContent = text; show(el, true); }
+
+    // List audio files
+    async function loadAudioFiles() {
+      const list = document.getElementById('audioFilesList');
+      const noFilesMsg = document.getElementById('noFilesMsg');
+      list.innerHTML = '';
+      show(noFilesMsg, false);
+      try {
+        const res = await fetch('/audio-files');
+        const data = await res.json();
+        if (data.files && data.files.length > 0) {
+          data.files.forEach(f => {
+            const li = document.createElement('li');
+            li.textContent = f;
+            list.appendChild(li);
+          });
+        } else {
+          show(noFilesMsg, true);
+        }
+      } catch (e) {
+        setText(noFilesMsg, 'Error loading files.');
+      }
+    }
+
+    // Upload
+    document.getElementById('uploadForm').addEventListener('submit', async function(e) {
+      e.preventDefault();
+      const files = document.getElementById('audioFiles').files;
+      if (!files.length) return;
+      show(document.getElementById('uploadLoader'), true);
+      show(document.getElementById('uploadResults'), false);
+      const formData = new FormData();
+      for (const file of files) formData.append('audio', file);
+      try {
+        const res = await fetch('/upload', { method: 'POST', body: formData });
+        const data = await res.json();
+        setText(document.getElementById('uploadResults'), data.message || JSON.stringify(data));
+        loadAudioFiles();
+      } catch (e) {
+        setText(document.getElementById('uploadResults'), 'Upload failed.');
+      } finally {
+        show(document.getElementById('uploadLoader'), false);
+      }
+    });
+
+    // Transcribe all
+    document.getElementById('transcribeAllBtn').addEventListener('click', async function() {
+      show(document.getElementById('transcribeLoader'), true);
+      show(document.getElementById('transcribeResults'), false);
+      try {
+        const res = await fetch('/transcribe-all', { method: 'POST' });
+        const data = await res.json();
+        setText(document.getElementById('transcribeResults'), data.message + '\n' + (data.results ? JSON.stringify(data.results, null, 2) : ''));
+      } catch (e) {
+        setText(document.getElementById('transcribeResults'), 'Transcription failed.');
+      } finally {
+        show(document.getElementById('transcribeLoader'), false);
+      }
+    });
+
+    // Analyze
+    document.getElementById('analyzeBtn').addEventListener('click', async function() {
+      show(document.getElementById('analyzeLoader'), true);
+      show(document.getElementById('analysisResults'), false);
+      try {
+        const res = await fetch('/analyze');
+        const data = await res.json();
+        setText(document.getElementById('analysisResults'), data.result || data.message || JSON.stringify(data));
+      } catch (e) {
+        setText(document.getElementById('analysisResults'), 'Analysis failed.');
+      } finally {
+        show(document.getElementById('analyzeLoader'), false);
+      }
+    });
+
+    // Report street name
+    document.getElementById('reportForm').addEventListener('submit', async function(e) {
+      e.preventDefault();
+      const answer = document.getElementById('streetAnswer').value.trim();
+      if (!answer) return;
+      show(document.getElementById('reportLoader'), true);
+      show(document.getElementById('reportResults'), false);
+      try {
+        const res = await fetch('/report-street', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ answer })
+        });
+        const data = await res.json();
+        // Show the complete API response including the result from the service
+        const responseMessage = data.message +
+          (data.apiResponse ? '\n\nAPI Response: ' + JSON.stringify(data.apiResponse, null, 2) : '') +
+          (data.answer ? '\n\nSubmitted Answer: ' + data.answer : '');
+        setText(document.getElementById('reportResults'), responseMessage);
+      } catch (e) {
+        setText(document.getElementById('reportResults'), 'Błąd wysyłania odpowiedzi.');
+      } finally {
+        show(document.getElementById('reportLoader'), false);
+      }
+    });
+
+    // Initial load
+    loadAudioFiles();
+  </script>
+</body>
+</html>
+
